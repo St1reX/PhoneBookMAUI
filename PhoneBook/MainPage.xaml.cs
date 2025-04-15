@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 
 namespace PhoneBook
@@ -14,7 +15,22 @@ namespace PhoneBook
             get => contacts_;
             set
             {
-                contacts_ = new ObservableCollection<Person>(value.OrderBy(c => c.LastName).ThenBy(c => c.FirstName));
+                var tmp = new ObservableCollection<Person>(value.OrderBy(c => c.LastName).ThenBy(c => c.FirstName));
+                contacts_.Clear();
+                OnPropertyChanged(nameof(Contacts));
+
+                foreach (var contact in tmp)
+                {
+                    contacts_.Add(contact);
+                }
+                
+                BindingContext = null; // Clear the previous BindingContext
+                BindingContext = this;
+
+                foreach (var contact in contacts_)
+                {
+                    Debug.WriteLine(contact.FirstName + "||" + contact.LastName + "||" + contact.PhoneNumber);
+                }
                 OnPropertyChanged(nameof(Contacts));
             }
         }
@@ -32,7 +48,6 @@ namespace PhoneBook
                 new Person("John", "Doe", "111-222-333"),
                 new Person("Jakub", "Uryga", "444-555-666")
             };
-            BindingContext = this;
         }
 
 
@@ -51,7 +66,6 @@ namespace PhoneBook
             {
                 DisplayAlert("Error occurred while adding new contact.", ex.Message, "Continue");
             }
-            BindingContext = this;
         }
 
 
@@ -117,7 +131,7 @@ namespace PhoneBook
             var selectedPerson = (Person)((Button)sender).BindingContext;
             if (selectedPerson != null)
             {
-                await Navigation.PushModalAsync(new EditDataPage(Contacts, FindIndexToModify(selectedPerson)));
+                await Navigation.PushModalAsync(new EditDataPage(Contacts, FindIndexToModify(selectedPerson)), true);
             }
         }
 
@@ -125,7 +139,7 @@ namespace PhoneBook
 
 
     //NEW CARD TO MODIFYING
-    public class EditDataPage : ContentPage
+    public class EditDataPage : MainPage
     {
         private Person PersonToEdit { get; set; }
 
@@ -194,7 +208,9 @@ namespace PhoneBook
                     contacts[indexToEdit].LastName = lastNameEntry.Text;
                     contacts[indexToEdit].PhoneNumber = phoneNumberEntry.Text;
 
-                    await Navigation.PopModalAsync();
+                    Contacts = contacts;
+
+                    await Navigation.PopModalAsync(true);
                 }
                 catch (ArgumentException ex)
                 {
